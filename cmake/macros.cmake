@@ -1,0 +1,46 @@
+
+#macro(link_sdl2 TARGET_NAME)
+#    target_include_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/SDL2-2.0.14/include)
+#	#target_include_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/SDL2-2.0.14/include/SDL2)
+#    target_link_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/SDL2-2.0.14/lib/x64)
+#    target_link_libraries(${TARGET_NAME} SDL2 SDL2main)
+#endmacro()
+
+#macro(link_sdl2_image TARGET_NAME)
+#    target_include_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/SDL2_image-2.0.5/include)
+#    target_link_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/SDL2_image-2.0.5/lib/x64)
+#    target_link_libraries(${TARGET_NAME} SDL2_image)
+#endmacro()
+
+#macro(link_sdl2_ttf TARGET_NAME)
+#    target_include_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/SDL2_ttf-2.0.15/include)
+#    target_link_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/SDL2_ttf-2.0.15/lib/x64)
+#    target_link_libraries(${TARGET_NAME} SDL2_ttf)
+#endmacro()
+
+macro(link_glfw TARGET_NAME)
+    target_include_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/glfw-3.3.5-build/include)
+    target_link_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/glfw-3.3.5-build/lib/x86/Release)
+    target_link_libraries(${TARGET_NAME} glfw3.lib)
+endmacro()
+
+macro(link_glad TARGET_NAME)
+    include_directories(${GIT_ROOT}/external/lib_bin/glad/include)
+    target_sources(${TARGET_NAME} PRIVATE ${GIT_ROOT}/external/lib_bin/glad/src/glad.c)
+endmacro()
+
+macro(link_nanovg TARGET_NAME)
+    target_include_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/nanovg-build/include)
+    target_link_directories(${TARGET_NAME} PUBLIC ${GIT_ROOT}/external/lib_bin/nanovg-build/lib/x86/Release)
+    target_link_libraries(${TARGET_NAME} nanovg.lib)
+endmacro()
+
+macro(add_src_files TARGET_NAME)
+    target_sources(${TARGET_NAME} PRIVATE ${SRC_SOURCES})
+endmacro()
+
+macro(link_libraries TARGET_NAME LIBS)
+    foreach(lib LIBS)
+        message("WIll link lib")
+    endforeach()
+endmacro()

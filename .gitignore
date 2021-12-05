@@ -1,0 +1,7 @@
+*.user 
+build
+bin
+external/lib_bin
+!bin/.gitkeep
+*.qbs
+
