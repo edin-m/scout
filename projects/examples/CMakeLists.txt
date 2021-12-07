@@ -16,5 +16,5 @@ link_dependencies(nanogui_example LIBS glad glfw eigen nanovg nanogui)
 target_compile_definitions(nanogui_example PUBLIC NANOGUI_GLAD)
 
 # setup output dir for all exampels
-list(APPEND TARGETS glad_example imgui_example nanovg_example)
+list(APPEND TARGETS nanogui_example glad_example imgui_example nanovg_example)
 setup_output_destination("${TARGETS}")

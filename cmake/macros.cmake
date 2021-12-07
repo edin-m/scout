@@ -75,39 +75,22 @@ macro(link_eigen TARGET_NAME)
 endmacro()
 
 macro(link_nanogui TARGET_NAME)
+#    set(EXT_LIB_DIR C:/del/nanogui_example4/libs)
+#    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/include)
+#    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/include/nanogui)
+#    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/src)
 
-    set(EXT_LIB_DIR C:/del/nanogui_example4/libs)
-    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/include)
-    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/include/nanogui)
-    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/src)
-
+    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_ROOT}/nanogui-build/include)
+    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_ROOT}/nanogui-build/include/nanogui)
+#    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_ROOT}/nanogui-build/include/nanogui/src)
 
     target_link_libraries(${TARGET_NAME} PUBLIC
-        debug C:/del/nanogui_example4/libs/nanogui-build/${ARCH}-Debug-static/nanogui.lib
-        optimized C:/del/nanogui_example4/libs/nanogui-build/${ARCH}-Release-static/nanogui.lib)
+        debug ${EXT_LIB_ROOT}/nanogui-build/${ARCH}-Debug-static/nanogui.lib
+        optimized ${EXT_LIB_ROOT}/nanogui-build/${ARCH}-Release-static/nanogui.lib)
     target_link_libraries(${TARGET_NAME} PUBLIC
-        debug C:/del/nanogui_example4/libs/glfw-3.3.5-build/${ARCH}-Debug-static/glfw3.lib
-        optimized C:/del/nanogui_example4/libs/glfw-3.3.5-build/${ARCH}-Release-static/glfw3.lib)
+        debug ${EXT_LIB_ROOT}/glfw-3.3.5-build/${ARCH}-Debug-static/glfw3.lib
+        optimized ${EXT_LIB_ROOT}/glfw-3.3.5-build/${ARCH}-Release-static/glfw3.lib)
     target_compile_definitions(${TARGET_NAME} PUBLIC NANOGUI_BUILD)
-
-
-
-
-    #    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/glad-build/include)
-#    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanovg-build/include)
-#    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanovg-build/include/nanovg)
-#    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/glfw-3.3.5-build/include)
-#    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanogui-build/include/nanogui)
-#    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanogui-build/include)
-
-#    # glad glfw nanovg
-##    target_link_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanogui-build/${ARCH}-$[BUILD_TYPE}-static)
-##    target_link_libraries(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanogui-build/${ARCH}-${BUILD_TYPE}-static/nanogui.lib)
-
-#    target_link_directories(${TARGET_NAME} PRIVATE C:/del/nanogui_example4/libs/nanogui-build/x86-debug-static)
-#    target_link_libraries(${TARGET_NAME} PRIVATE C:/del/nanogui_example4/libs/nanogui-build/x86-debug-static/nanogui.lib)
-
-##    target_compile_definitions(${TARGET_NAME} PUBLIC NANOGUI_GLAD)
 endmacro()
 
 macro(link_imgui TARGET_NAME)
