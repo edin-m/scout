@@ -4,4 +4,4 @@ bin
 external/lib_bin
 !bin/.gitkeep
 *.qbs
-
+build2
