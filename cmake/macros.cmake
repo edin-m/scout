@@ -68,44 +68,16 @@ macro(link_eigen TARGET_NAME)
 endmacro()
 
 macro(link_nanogui TARGET_NAME)
-#    set(LIB_BASE C:/del/nanogui_example3)
-#    target_include_directories(${TARGET_NAME} PRIVATE ${LIB_BASE}/glad-build/include)
-#    target_link_libraries(${TARGET_NAME} ${LIB_BASE}/glad-build/lib/${ARCH}/Debug/glad.lib)
-
-#    target_include_directories(${TARGET_NAME} PRIVATE ${LIB_BASE}/eigen-build)
-
-#    target_include_directories(${TARGET_NAME} PRIVATE ${LIB_BASE}/glfw-3.3.5-build/include)
-#    target_link_libraries(${TARGET_NAME} ${LIB_BASE}/glfw-3.3.5-build/lib/${ARCH}/Debug/glfw3.lib)
-
-#    target_include_directories(${TARGET_NAME} PRIVATE ${LIB_BASE}/nanovg-build/include/nanovg)
-#    target_link_libraries(${TARGET_NAME} ${LIB_BASE}/nanovg-build/lib/${ARCH}/Debug/nanovg.lib)
-
-#    target_include_directories(${TARGET_NAME} PRIVATE ${LIB_BASE}/nanogui-build/include/nanogui)
-#    target_include_directories(${TARGET_NAME} PRIVATE ${LIB_BASE}/nanogui-build/include)
-#    target_link_libraries(${TARGET_NAME} ${LIB_BASE}/nanogui-build/lib/${ARCH}/Debug/nanogui.lib)
-
-#    target_compile_definitions(${TARGET_NAME} PRIVATE NANOGUI_SHARED NVG_SHARED GLAD_GLAPI_EXPORT NANOGUI_GLAD)
-
-
     target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanogui-build/include/nanogui)
     target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/nanogui-build/include)
     target_link_libraries(${TARGET_NAME} ${EXT_LIB_ROOT}/nanogui-build/lib/${ARCH}/${BUILD_TYPE}/nanogui.lib)
 
-    target_compile_definitions(${TARGET_NAME} PRIVATE NANOGUI_SHARED NVG_SHARED GLAD_GLAPI_EXPORT NANOGUI_GLAD)
-
-
-
-
-
-
-
-
-
-
-
+#    target_compile_definitions(${TARGET_NAME} PRIVATE NANOGUI_SHARED NVG_SHARED GLAD_GLAPI_EXPORT NANOGUI_GLAD)
+    target_compile_definitions(${TARGET_NAME} PRIVATE NANOGUI_GLAD)
 endmacro()
 
 macro(link_imgui TARGET_NAME)
+    # todo: maybe make a static lib
     set(IMGUI_HOME ${GIT_ROOT}/external/lib_bin/imgui)
     include_directories(${IMGUI_HOME} ${IMGUI_HOME}/backends)
     file(GLOB IMGUI_CPP "${IMGUI_HOME}/imgui*.cpp")
