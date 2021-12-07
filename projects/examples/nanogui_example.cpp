@@ -1,7 +1,3 @@
-
-
-
-
 /*
     src/example2.cpp -- C++ version of an example application that shows
     how to use the form helper class. For a Python implementation, see
@@ -14,6 +10,7 @@
     All rights reserved. Use of this source code is governed by a
     BSD-style license that can be found in the LICENSE.txt file.
 */
+
 
 #include <nanogui/nanogui.h>
 #include <iostream>
