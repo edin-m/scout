@@ -75,6 +75,11 @@ macro(link_eigen TARGET_NAME)
 endmacro()
 
 macro(link_nanogui TARGET_NAME)
+    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_ROOT}/glfw-3.3.5-build/include)
+    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/glad-build/include)
+    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_ROOT}/nanovg-build/include)
+    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_ROOT}/nanovg-build/include/nanovg)
+
 #    set(EXT_LIB_DIR C:/del/nanogui_example4/libs)
 #    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/include)
 #    target_include_directories(${TARGET_NAME} PUBLIC ${EXT_LIB_DIR}/nanogui/include/nanogui)
