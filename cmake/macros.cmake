@@ -101,17 +101,23 @@ endmacro()
 macro(link_imgui TARGET_NAME)
     # todo: maybe make a static lib
     set(IMGUI_HOME ${GIT_ROOT}/external/lib_bin/imgui)
-    target_include_directories(${TARGET_NAME} PRIVATE ${IMGUI_HOME} ${IMGUI_HOME}/backends)
+    target_include_directories(${TARGET_NAME}
+        PRIVATE ${IMGUI_HOME} ${IMGUI_HOME}/backends ${IMGUI_HOME}/misc/cpp)
     file(GLOB IMGUI_CPP "${IMGUI_HOME}/imgui*.cpp")
     target_sources(${TARGET_NAME} PRIVATE ${IMGUI_CPP})
     target_sources(${TARGET_NAME} PRIVATE
         "${IMGUI_HOME}/backends/imgui_impl_glfw.cpp"
+        "${IMGUI_HOME}/misc/cpp/imgui_stdlib.cpp"
         "${IMGUI_HOME}/backends/imgui_impl_opengl3.cpp" )
 endmacro()
 
 macro(link_src TARGET_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE ${GIT_ROOT}/src)
     target_sources(${TARGET_NAME} PRIVATE ${SRC_SOURCES})
+endmacro()
+
+macro(link_glm TARGET_NAME)
+    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/glm-build/include)
 endmacro()
 
 # setup output directory location based on the project name for a target
