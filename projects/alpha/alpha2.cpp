@@ -217,7 +217,8 @@ int main(int /* argc */, char ** /* argv */) {
     );
 
     glfwSetKeyCallback(window,
-        [](GLFWwindow *, int key, int scancode, int action, int mods) {
+        [](GLFWwindow *win, int key, int scancode, int action, int mods) {
+        ImGui_ImplGlfw_KeyCallback(win, key, scancode, action, mods);
             screen->keyCallbackEvent(key, scancode, action, mods);
             if (key == GLFW_KEY_Q) {
                 std::exit(0);
@@ -229,7 +230,8 @@ int main(int /* argc */, char ** /* argv */) {
     );
 
     glfwSetCharCallback(window,
-        [](GLFWwindow *, unsigned int codepoint) {
+        [](GLFWwindow *win, unsigned int codepoint) {
+        ImGui_ImplGlfw_CharCallback(win, codepoint);
             screen->charCallbackEvent(codepoint);
         }
     );
@@ -241,7 +243,8 @@ int main(int /* argc */, char ** /* argv */) {
     );
 
     glfwSetScrollCallback(window,
-        [](GLFWwindow *, double x, double y) {
+        [](GLFWwindow* win, double x, double y) {
+            ImGui_ImplGlfw_ScrollCallback(win, x, y);
             screen->scrollCallbackEvent(x, y);
        }
     );
