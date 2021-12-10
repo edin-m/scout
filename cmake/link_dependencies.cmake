@@ -41,5 +41,15 @@ macro(link_dependencies TARGET_NAME)
         if(${lib} STREQUAL nanogui)
             link_nanogui(${TARGET_NAME})
         endif()
+
+        # glm
+        if(${lib} STREQUAL glm)
+            link_glm(${TARGET_NAME})
+        endif()
+
+        # cute
+        if(${lib} STREQUAL cute)
+            link_cute(${TARGET_NAME})
+        endif()
     endforeach()
 endmacro()

@@ -120,6 +120,10 @@ macro(link_glm TARGET_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/glm-build/include)
 endmacro()
 
+macro(link_cute TARGET_NAME)
+    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/cute-build/include)
+endmacro()
+
 # setup output directory location based on the project name for a target
 # usage:
 #list(APPEND TARGETS nanogui_example glad_example nanovg_example imgui_example)

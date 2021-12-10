@@ -163,25 +163,62 @@ int main(int /* argc */, char ** /* argv */) {
 
     NVGcontext* vg = screen->nvgContext();
 
+
+
     float pxRatio;
     double mx, my;
     int winWidth, winHeight, fbWidth, fbHeight;
     bool premult = false;
 
-    SceneNode* root = new SceneNode();
-    Scene* scene = new Scene(root);
-
-    EntityComponentSystem* ecs = new EntityComponentSystem();
-    RenderSystem* rsys = new RenderSystem(window, ecs, vg);
-    isys = new InputSystem(ecs, scene);
 
 
+    GraphicsScene* world = new GraphicsScene();
+    world->SetShape(Shape::Type::Null);
+
+    Entity* e1 = new Entity(world);
+    e1->SetShape(Shape::Box);
+    e1->GetTransformation().SetPos(100, 100);
+
+    Entity* e2 = new Entity(world);
+    e2->SetShape(Shape::Box);
+    e2->GetTransformation().SetPos(200, 200);
+
+    Vertices data = {
+        { 0, 0 },
+        { 0, 100 },
+        { 100, 100 },
+        { 50, 50 },
+        { 100, 0 }
+    };
+    e2->GetShape().SetPoints(data);
+
+    world->UpdateSelfAndChildTransform();
+
+    isys = new InputSystem(world);
+    RenderSystem* rsys = new RenderSystem(window, vg, world);
 
 
 
+//    EntityComponentSystem* ecs = new EntityComponentSystem();
+//    Entity* world = ecs->CreateEntity();
+
+//    SceneRoot* root = new SceneRoot(world);
 
 
+//    Entity* e1 = ecs->CreateEntity();
+//    auto r1 = ecs->Assign(ComponentType::Render, e1);
+//    auto s1 = ecs->Assign(ComponentType::Shape, e1);
 
+//    Entity* e2 = ecs->CreateEntity();
+//    auto r2 = ecs->Assign(ComponentType::Render, e2);
+//    auto s2 = ecs->Assign(ComponentType::Shape, e2);
+
+//    auto* rc1 = e1->GetComponent<RenderComponent>(ComponentType::Render);
+//    rc1->Select(true);
+
+
+//    RenderSystem* rsys = new RenderSystem(window, ecs, vg);
+//    isys = new InputSystem(ecs);
 
 
 
@@ -261,28 +298,6 @@ int main(int /* argc */, char ** /* argv */) {
 
 
 
-
-    Entity* e1 = ecs->CreateEntity();
-    auto r1 = ecs->Assign(ComponentType::Render, e1);
-    auto s1 = ecs->Assign(ComponentType::Shape, e1);
-    auto t1 = ecs->Assign(ComponentType::Transform, e1);
-
-    Entity* e2 = ecs->CreateEntity();
-    auto r2 = ecs->Assign(ComponentType::Render, e2);
-    auto s2 = ecs->Assign(ComponentType::Shape, e2);
-    auto t2 = ecs->Assign(ComponentType::Transform, e2);
-
-    TRANSFORM(t2)->SetPos(Vector3f { 100, 100, 0 });
-    TRANSFORM(t2)->SetScale(Vector3f { 100, 100, 0 });
-
-    TRANSFORM(t1)->SetPos(Vector3f { 200, 200, 0 });
-    TRANSFORM(t1)->SetScale(Vector3f { 100, 100, 0 });
-
-    auto* tc1 = e1->GetComponent<TransformComponent>(ComponentType::Transform);
-    auto* rc1 = e1->GetComponent<RenderComponent>(ComponentType::Render);
-
-    rc1->Select(true);
-
     std::string text_input;
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
@@ -322,6 +337,29 @@ int main(int /* argc */, char ** /* argv */) {
             ImGui::Text("counter = %d", counter);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+            double xpos, ypos;
+            glfwGetCursorPos(window, &xpos, &ypos);
+            ImGui::Text("xpos %d, ypos %d", (int)xpos, (int)ypos);
+
+            {
+                bool e1hit = e1->IsHit(xpos, ypos);
+                bool e2hit = e2->IsHit(xpos, ypos);
+                ImGui::Text("hit e1: %d, hit e2: %d", e1hit, e2hit);
+
+                if (e1hit) {
+                    glm::vec2 local = e1->GetTransformation().TranslateGlobalToLocal(
+                                glm::vec2 {xpos, ypos});
+                    ImGui::Text("e1 local coords %f %f", local.x, local.y);
+                }
+                if (e2hit) {
+                    glm::vec2 local = e2->GetTransformation().TranslateGlobalToLocal(
+                                glm::vec2 {xpos, ypos});
+                    ImGui::Text("e2 local coords %f %f", local.x, local.y);
+                }
+
+            }
+
             ImGui::End();
         }
 
@@ -356,7 +394,7 @@ int main(int /* argc */, char ** /* argv */) {
         float dt = 1000/60.0f;
 
 
-        rsys->Update(dt);
+        rsys->Render();
 
 
 
