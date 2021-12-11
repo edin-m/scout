@@ -255,17 +255,33 @@ int main(int /* argc */, char ** /* argv */) {
 
     Entity* world = new Entity();
     world->SetData(data);
+    world->SetPos(glm::vec3 { 100, 100, 0 });
+    world->SetRotation(glm::vec3 { 0, 0, 15 });
+    world->SetColor(nvgRGBA(50, 255, 255, 255));
+
+
+    Entity* e2 = new Entity(world);
+    e2->SetData(data);
+    e2->SetPos(glm::vec3 { 100, 100, 0 });
+    e2->SetRotation(glm::vec3 { 0, 0, 0 });
+    e2->SetColor(nvgRGBA(155, 155, 50, 255));
+
+
+    Entity* e3 = new Entity(world);
+    e3->SetData(data);
+    e3->SetPos(glm::vec3 { 200, 200, 0 });
+    e3->SetColor(nvgRGBA(255, 155, 155, 155));
+
+
+    Entity* e4 = new Entity(e2);
+    e4->SetData(data);
+    e4->SetPos(glm::vec3 { 150, -20, 0 });
+    e4->SetColor(nvgRGBA(200, 255, 200, 255));
 
 
 
-
-    std::cout << world << std::endl;
-
-
-
-
-
-
+    std::cout << world->GetWorld() << std::endl;
+    std::cout << world->GetAABB() << std::endl;
 
 
 
@@ -316,6 +332,33 @@ int main(int /* argc */, char ** /* argv */) {
 
 
 
+            {
+                glm::vec2 local = world->ToLocalCoords(glm::vec2 { xpos, ypos });
+                ImGui::Text("world local coords %.2f %.2f", local.x, local.y);
+            }
+
+
+            {
+                glm::vec2 local = e2->ToLocalCoords(glm::vec2 { xpos, ypos });
+                ImGui::Text("e2 local coords %.2f %.2f", local.x, local.y);
+            }
+
+
+            {
+                glm::vec2 local = e3->ToLocalCoords(glm::vec2 { xpos, ypos });
+                ImGui::Text("e3 local coords %.2f %.2f", local.x, local.y);
+            }
+
+
+            {
+                glm::vec2 local = e4->ToLocalCoords(glm::vec2 { xpos, ypos });
+                ImGui::Text("e4 local coords %.2f %.2f", local.x, local.y);
+                glm::vec2 global = e4->ToGlobalCoords(local);
+                ImGui::Text("e4 global coords %.2f %.2f", global.x, global.y);
+            }
+
+
+
 
 
             ImGui::End();
@@ -355,6 +398,7 @@ int main(int /* argc */, char ** /* argv */) {
 
 
 
+
         float pxRatio;
         double mx, my;
         int winWidth, winHeight, fbWidth, fbHeight;
@@ -367,6 +411,7 @@ int main(int /* argc */, char ** /* argv */) {
         glViewport(0, 0, fbWidth, fbHeight);
 
         world->Render(vg);
+
         nvgEndFrame(vg);
 
 
