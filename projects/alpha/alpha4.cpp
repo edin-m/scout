@@ -327,6 +327,7 @@ int main(int /* argc */, char ** /* argv */) {
 
             double xpos, ypos;
             glfwGetCursorPos(window, &xpos, &ypos);
+            Point mousep = { xpos, ypos };
             ImGui::Text("xpos %d, ypos %d", (int)xpos, (int)ypos);
 
 
@@ -334,21 +335,25 @@ int main(int /* argc */, char ** /* argv */) {
 
             {
                 glm::vec2 local = world->ToLocalCoords(glm::vec2 { xpos, ypos });
-                ImGui::Text("world local coords %.2f %.2f", local.x, local.y);
+                ImGui::Text("world local coords %.2f %.2f hit: %d %d", local.x, local.y,
+                            world->HitTestAABB(mousep),
+                            world->HitTest(mousep));
             }
 
 
             {
                 glm::vec2 local = e2->ToLocalCoords(glm::vec2 { xpos, ypos });
-                bool aabbhit = e2->GetAABB().Contains(xpos, ypos);
-                ImGui::Text("e2 local coords %.2f %.2f aabbhit:%d", local.x, local.y, aabbhit);
+                ImGui::Text("e2 local coords %.2f %.2f aabbhit:%d %d", local.x, local.y,
+                            e2->HitTestAABB(mousep),
+                            e2->HitTest(mousep));
             }
 
 
             {
                 glm::vec2 local = e3->ToLocalCoords(glm::vec2 { xpos, ypos });
-                bool aabbhit = e3->GetAABB().Contains(xpos, ypos);
-                ImGui::Text("e3 local coords %.2f %.2f aabb hit:%d", local.x, local.y, aabbhit);
+                ImGui::Text("e3 local coords %.2f %.2f aabb hit:%d %d", local.x, local.y,
+                            e3->HitTestAABB(mousep),
+                            e3->HitTest(mousep));
             }
 
 
@@ -356,8 +361,9 @@ int main(int /* argc */, char ** /* argv */) {
                 glm::vec2 local = e4->ToLocalCoords(glm::vec2 { xpos, ypos });
                 ImGui::Text("e4 local coords %.2f %.2f", local.x, local.y);
                 glm::vec2 global = e4->ToGlobalCoords(local);
-                ImGui::Text("e4 global coords %.2f %.2f; aabb hit:%d", global.x, global.y,
-                            e4->GetAABB().Contains(global.x, global.y));
+                ImGui::Text("e4 global coords %.2f %.2f; aabb hit:%d %d", global.x, global.y,
+                            e4->HitTestAABB(mousep),
+                            e4->HitTest(mousep));
             }
 
 

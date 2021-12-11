@@ -31,6 +31,7 @@ using namespace Eigen;
 #define BORROW
 
 using Vertices = std::vector<glm::vec2>;
+using Point = glm::vec2;
 
 // ===========================
 
@@ -126,21 +127,21 @@ static bool point_in_bounding_box(Vertices& verts, glm::vec2& p) {
 
 static bool point_in_poly(Vertices& verts, glm::vec2& p)
 {
-    double minX = verts[0].x;
-    double maxX = verts[0].x;
-    double minY = verts[0].y;
-    double maxY = verts[0].y;
-    for (int i = 1 ; i < verts.size() ; i++) {
-        glm::vec2& q = verts[i];
-        minX = min(q.x, minX);
-        maxX = max(q.x, maxX);
-        minY = min(q.y, minY);
-        maxY = max(q.y, maxY);
-    }
+//    double minX = verts[0].x;
+//    double maxX = verts[0].x;
+//    double minY = verts[0].y;
+//    double maxY = verts[0].y;
+//    for (int i = 1 ; i < verts.size() ; i++) {
+//        glm::vec2& q = verts[i];
+//        minX = min(q.x, minX);
+//        maxX = max(q.x, maxX);
+//        minY = min(q.y, minY);
+//        maxY = max(q.y, maxY);
+//    }
 
-    if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
-        return false;
-    }
+//    if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
+//        return false;
+//    }
 
     bool in_poly = false;
     auto num_verts = verts.size();
@@ -252,6 +253,32 @@ public:
             aabb.Expand(c->GetAABB());
         }
         return aabb;
+    }
+
+    bool HitTestAABB(Point& p) {
+        return GetAABB().Contains(p.x, p.y);
+    }
+
+    bool HitTest(Point& p) {
+        if (!HitTestAABB(p)) {
+            return false;
+        }
+
+        // need to convert to "mesh local" coords
+        glm::vec4 local = glm::inverse(world_mat * local_mat)
+                * glm::vec4(p.xy, 0.0f, 1.0f);
+
+        Point pt = local.xy;
+        bool self = point_in_poly(data, pt);
+        if (self) return true;
+        for (auto& child : children) {
+            if (child->HitTestAABB(p)) {
+                if (child->HitTest(p)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 private:
