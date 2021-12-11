@@ -81,6 +81,14 @@ struct AABB {
 
     float GetWidth() { return max.x - min.x; }
     float GetHeight() { return max.y - min.y; }
+
+    bool Contains(float x, float y) {
+        if (x >= min.x && x <= max.x &&
+                y >= min.y && y <= max.y) {
+            return true;
+        }
+        return false;
+    }
 };
 
 

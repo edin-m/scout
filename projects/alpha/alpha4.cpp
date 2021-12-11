@@ -340,13 +340,15 @@ int main(int /* argc */, char ** /* argv */) {
 
             {
                 glm::vec2 local = e2->ToLocalCoords(glm::vec2 { xpos, ypos });
-                ImGui::Text("e2 local coords %.2f %.2f", local.x, local.y);
+                bool aabbhit = e2->GetAABB().Contains(xpos, ypos);
+                ImGui::Text("e2 local coords %.2f %.2f aabbhit:%d", local.x, local.y, aabbhit);
             }
 
 
             {
                 glm::vec2 local = e3->ToLocalCoords(glm::vec2 { xpos, ypos });
-                ImGui::Text("e3 local coords %.2f %.2f", local.x, local.y);
+                bool aabbhit = e3->GetAABB().Contains(xpos, ypos);
+                ImGui::Text("e3 local coords %.2f %.2f aabb hit:%d", local.x, local.y, aabbhit);
             }
 
 
@@ -354,7 +356,8 @@ int main(int /* argc */, char ** /* argv */) {
                 glm::vec2 local = e4->ToLocalCoords(glm::vec2 { xpos, ypos });
                 ImGui::Text("e4 local coords %.2f %.2f", local.x, local.y);
                 glm::vec2 global = e4->ToGlobalCoords(local);
-                ImGui::Text("e4 global coords %.2f %.2f", global.x, global.y);
+                ImGui::Text("e4 global coords %.2f %.2f; aabb hit:%d", global.x, global.y,
+                            e4->GetAABB().Contains(global.x, global.y));
             }
 
 
