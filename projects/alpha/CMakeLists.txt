@@ -9,8 +9,16 @@ add_executable(alpha2 alpha2.cpp alpha2/game.h alpha2/game.cpp)
 link_dependencies(alpha2 LIBS opengl glad glfw eigen imgui nanovg nanogui glm cute)
 link_src(alpha2)
 
+add_executable(alpha3 alpha3.cpp alpha3/game.h alpha3/game.cpp)
+link_dependencies(alpha3 LIBS opengl glad glfw eigen imgui nanovg nanogui glm cute)
+link_src(alpha3)
+
+add_executable(alpha4 alpha4.cpp alpha3/game.h alpha3/game.cpp)
+link_dependencies(alpha4 LIBS opengl glad glfw eigen imgui nanovg nanogui glm cute)
+link_src(alpha4)
+
 # setup output dir for all exampels
-list(APPEND TARGETS alpha1)
+list(APPEND TARGETS alpha1 alpha2 alpha3 alpha4)
 setup_output_destination("${TARGETS}")
 
 message("Adding alpha")

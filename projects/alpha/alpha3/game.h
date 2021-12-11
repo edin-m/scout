@@ -1,8 +1,10 @@
 #ifndef ALPHA2_H
 #define ALPHA2_H
 
+#include <iostream>
 #include <vector>
 #include <unordered_map>
+#include <queue>
 
 #include "GLFW/glfw3.h"
 
@@ -21,6 +23,8 @@ using namespace Eigen;
 #include <glm/gtx/io.hpp>
 
 #include "cute/cute_math2d.h"
+
+#include "core/math/bbox.h"
 
 #define OWNING
 #define BORROW
@@ -44,6 +48,20 @@ enum class ComponentType {
     Sound,
     Music
 };
+
+
+
+template<typename ... Args>
+static std::string string_format( const std::string& format, Args ... args )
+{
+    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
+    auto size = static_cast<size_t>( size_s );
+    auto buf = std::make_unique<char[]>( size );
+    std::snprintf( buf.get(), size, format.c_str(), args ... );
+    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
+
 
 static bool point_in_bounding_box(Vertices& verts, glm::vec2& p) {
     double minX = verts[0].x;
@@ -148,6 +166,12 @@ public:
                     roationMatrix *
                     glm::scale(glm::mat4(1.0f), scale);
     }
+    glm::mat4 GetLocalAAModelMatrix()
+    {
+        // translation * rotation * scale (also know as TRS matrix)
+        return glm::translate(glm::mat4(1.0f), pos) *
+                    glm::scale(glm::mat4(1.0f), scale);
+    }
 
     glm::mat4 GetWorldMatrix() { return world_mat; }
 
@@ -207,6 +231,7 @@ public:
     Entity(Entity* parent_ = nullptr)
         : parent(parent_)
     {
+        name = string_format("Entity_%d", ++id);
         if (parent) parent->AddChild(this);
     }
 
@@ -238,15 +263,75 @@ public:
     bool IsHitBoundingBox(float globalx, float globaly) {
         glm::vec2 local = transformation
                 .TranslateGlobalToLocal(glm::vec2 { globalx, globaly });
-        bool hit = point_in_bounding_box(shape.GetPoints(), local);
-        return hit;
+//        std::cout << GetName() << " "
+//                  << local  << " "
+//                  << globalx << " " << globaly
+//                  << std::endl;
+//        bool hit = point_in_bounding_box(shape.GetPoints(), local);
+        BBox bbox = GetBoundingBox();
+        return bbox.Contains(glm::vec2 { globalx, globaly });
     }
 
-private:
+    BBox GetBoundingBox() {
+        Vertices vdata;
+        glm::mat4 local_mat = transformation.GetLocalModelMatrix();
+        for (auto& p : shape.GetPoints()) {
+            auto res = local_mat * glm::vec4(p.xy, 0.0f, 1.0f);
+            vdata.push_back(res.xy);
+        }
+
+        box = BBox(vdata);
+
+        for (auto& a : vdata) {
+            std::cout << GetName() << " "
+                      << a
+                      << std::endl;
+        }
+
+        for (auto& child : children) {
+            auto& cbox = child->GetBoundingBox();
+            glm::vec2 min = MapToParent(cbox.GetMin());
+            glm::vec2 max = MapToParent(cbox.GetMax());
+            box.Extend(min);
+            box.Extend(max);
+        }
+
+        return box;
+
+//        box = BBox(shape.GetPoints());
+//        for (auto& c : children) {
+//            auto& cbox = c->GetBoundingBox();
+//            glm::vec2 min = MapToParent(cbox.GetMin());
+//            glm::vec2 max = MapToParent(cbox.GetMax());
+//            box.Extend(min);
+//            box.Extend(max);
+//        }
+//        glm::vec4 min = local_mat * glm::vec4(box.GetMin().xy, 0.0f, 1.0f);
+//        glm::vec4 max = local_mat * glm::vec4(box.GetMax().xy, 0.0f, 1.0f);
+//        auto p1 = glm::vec2(min.xy), p2 = glm::vec2(max.xy);
+//        BBox b(p1, p2);
+//        return b;
+    }
+
+    glm::vec2 MapToParent(glm::vec2& p) {
+        glm::mat4 id(1.0f);
+        if (parent) id = parent->transformation.GetLocalModelMatrix();
+        glm::vec4 mat = id * glm::vec4(p.xy, 0.0f, 1.0f);
+        return mat.xy;
+    }
+
+    std::string& GetName() { return name; }
+
+    std::vector<Entity*>& GetChildren() { return children; }
+
+protected:
     Entity* parent = nullptr;
     std::vector<Entity*> children;
     Transformation transformation;
     Shape shape;
+    BBox box;
+    std::string name = "";
+    inline static int id = 0;
 
     void AddChild(Entity* e) {
         e->parent = this;
@@ -254,10 +339,49 @@ private:
     }
 };
 
-
+/**
+ * @brief The GraphicsScene class
+ */
 class GraphicsScene : public Entity {
 public:
 
+    Entity* Select(double posx, double posy) {
+        std::queue<Entity*> q;
+        q.push(this);
+
+        selected = nullptr;
+
+        while (!q.empty()) {
+            Entity* e = q.front();
+            q.pop();
+
+//            std::cout << e->GetName()
+//                      << e->GetBoundingBox()
+//                      << e->IsHit(posx, posy)
+//                      << e->IsHitBoundingBox(posx, posy)
+//                      << std::endl;
+
+
+//            if (shape.GetType() != Shape::Null) {
+
+//                BBox b = e->GetBoundingBox();
+
+//                if (e->IsHitBoundingBox(posx, posy)) {
+//                    if (e->IsHit(posx, posy)) {
+//                        selected = e;
+//                    }
+//                }
+//            }
+
+            for (auto& c : e->GetChildren()) {
+                q.push(c);
+            }
+        }
+
+        return selected;
+    }
+private:
+    Entity* selected = nullptr;
 };
 
 
@@ -284,7 +408,7 @@ class RenderSystem {
 public:
     RenderSystem(GLFWwindow* window_, NVGcontext* nvg_, Entity* world_)
         : window(window_), nvg(nvg_), world(world_) { }
-    void Render();
+    void Render() {}
 private:
     GLFWwindow* window;
     Entity* world;
