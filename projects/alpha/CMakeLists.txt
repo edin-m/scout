@@ -13,7 +13,7 @@ add_executable(alpha3 alpha3.cpp alpha3/game.h alpha3/game.cpp)
 link_dependencies(alpha3 LIBS opengl glad glfw eigen imgui nanovg nanogui glm cute)
 link_src(alpha3)
 
-add_executable(alpha4 alpha4.cpp alpha3/game.h alpha3/game.cpp)
+add_executable(alpha4 alpha4.cpp alpha4/game.h alpha4/game.cpp)
 link_dependencies(alpha4 LIBS opengl glad glfw eigen imgui nanovg nanogui glm cute)
 link_src(alpha4)
 

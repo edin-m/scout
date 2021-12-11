@@ -53,7 +53,6 @@ test_enum enumval = Item2;
 Color colval(0.5f, 0.5f, 0.7f, 1.f);
 
 Screen *screen = nullptr;
-InputSystem* isys;
 
 #define TRANSFORM(A) ((TransformComponent*)A)
 
@@ -246,6 +245,28 @@ int main(int /* argc */, char ** /* argv */) {
     bool show_another_window = false;
 
 
+    Vertices data = {
+        { 0, 0 },
+        { 0, 100 },
+        { 100, 100 },
+        { 100, 0 },
+    };
+
+
+    Entity* world = new Entity();
+    world->SetData(data);
+
+
+
+
+    std::cout << world << std::endl;
+
+
+
+
+
+
+
 
 
     std::string text_input;
@@ -324,13 +345,29 @@ int main(int /* argc */, char ** /* argv */) {
 
 
         // Draw nanogui
-        screen->drawContents();
-        screen->drawWidgets();
+//        screen->drawContents();
+//        screen->drawWidgets();
 
 
         float dt = 1000/60.0f;
 
 
+
+
+
+        float pxRatio;
+        double mx, my;
+        int winWidth, winHeight, fbWidth, fbHeight;
+        bool premult = false;
+        glfwGetCursorPos(window, &mx, &my);
+        glfwGetWindowSize(window, &winWidth, &winHeight);
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+        // Calculate pixel ration for hi-dpi devices.
+        pxRatio = (float)fbWidth / (float)winWidth;
+        glViewport(0, 0, fbWidth, fbHeight);
+
+        world->Render(vg);
+        nvgEndFrame(vg);
 
 
         glfwSwapBuffers(window);

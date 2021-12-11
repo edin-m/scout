@@ -116,37 +116,15 @@ static bool point_in_poly(Vertices& verts, glm::vec2& p)
     return in_poly;
 }
 
-/**
- * @brief The Transformation class
- */
-class Transformation {
-    friend class Entity;
-    friend class RenderSystem;
+
+class Entity {
 public:
-    Transformation() {
-//        point_in_poly()
+    Entity(Entity* parent = nullptr) {
+        if (parent) parent->AddChild(this);
+        name = string_format("Entity_%d", ++EntityId);
     }
 
-//    void SetWorldPos(glm::vec2& vec) {
-//        glm::vec2 local_coord = TranslateGlobalToLocal(vec);
-//        local_pos = local_coord;
-//        // update local mat
-//    }
-
-//    void SetLocalPos(glm::vec2& vec) {
-//        local_pos = vec;
-//    }
-
-    glm::vec2 TranslateGlobalToLocal(glm::vec2& vec) {
-        glm::mat4 inv = glm::inverse(world_mat);
-        return inv * glm::vec4(vec.xy, 0.0f, 1.0f);
-    }
-
-//    glm::mat4 GetWorldMat() {
-//        return world_mat;
-//    }
-
-    glm::mat4 GetLocalModelMatrix()
+    glm::mat4 RecalculateLocalModelMatrix()
     {
         const glm::mat4 transformX = glm::rotate(glm::mat4(1.0f),
                              glm::radians(eulerRot.x),
@@ -162,259 +140,62 @@ public:
         const glm::mat4 roationMatrix = transformY * transformX * transformZ;
 
         // translation * rotation * scale (also know as TRS matrix)
-        return glm::translate(glm::mat4(1.0f), pos) *
+        local_mat = glm::translate(glm::mat4(1.0f), pos) *
                     roationMatrix *
                     glm::scale(glm::mat4(1.0f), scale);
-    }
-    glm::mat4 GetLocalAAModelMatrix()
-    {
-        // translation * rotation * scale (also know as TRS matrix)
-        return glm::translate(glm::mat4(1.0f), pos) *
-                    glm::scale(glm::mat4(1.0f), scale);
+        return local_mat;
     }
 
-    glm::mat4 GetWorldMatrix() { return world_mat; }
-
-    void SetPos(float x, float y) { pos.x = x; pos.y = y; }
-
-//private:
-    glm::vec3 pos = { 0.0f, 0.0f, 0.0f };
-    glm::vec3 scale = { 1.0f, 1.0f, 1.0f };
-    glm::vec3 eulerRot = { 0.0f, 0.0f, 0.0f };
-
-    glm::mat4 world_mat = glm::mat4(1.0f);
-};
-
-/**
- * @brief The Shape class
- */
-class Shape {
-    friend class Entity;
-public:
-    enum Type {
-        Null,
-        Box
-    };
-
-    Shape(Type type_ = Box)
-        : type(type_)
-    {
-        data = {
-            { 0, 0 },
-            { 0, 100 },
-            { 100, 100 },
-            { 100, 0 }
-        };
-    }
-
-    void SetPoints(std::vector<glm::vec2>& data) {
-        this->data = data;
-    }
-
-    std::vector<glm::vec2>& GetPoints() {
-        return data;
-    }
-
-    Type GetType() { return type; }
-
-private:
-    std::vector<glm::vec2> data;
-    Type type;
-};
-
-/**
- * @brief The Entity class
- */
-class Entity {
-    friend class RenderSystem;
-public:
-    Entity(Entity* parent_ = nullptr)
-        : parent(parent_)
-    {
-        name = string_format("Entity_%d", ++id);
-        if (parent) parent->AddChild(this);
-    }
-
-    Transformation& GetTransformation() { return transformation; }
-
-    void SetShape(Shape::Type type) { shape.type = type; }
-
-    void UpdateSelfAndChildTransform() {
-        glm::mat4 world = glm::mat4(1.0f);
-        if (parent) {
-            world = parent->GetTransformation().GetWorldMatrix();
-        }
-        transformation.world_mat = world * transformation.GetLocalModelMatrix();
-
-        for (auto&& child : children) {
-            child->UpdateSelfAndChildTransform();
+    void SetData(Vertices& verts) {
+        data.clear();
+        auto& local_mat = RecalculateLocalModelMatrix();
+        for (const auto& v : verts) {
+            glm::vec4 vp = local_mat * glm::vec4(v.xy, 0.0f, 1.0f);
+            data.push_back(vp);
         }
     }
 
-    Shape& GetShape() { return shape; }
-
-    bool IsHit(float globalx, float globaly) {
-        glm::vec2 local = transformation
-                .TranslateGlobalToLocal(glm::vec2 { globalx, globaly });
-        bool hit = point_in_poly(shape.GetPoints(), local);
-        return hit;
+    void SetPos(glm::vec3& v) {
+        pos = v;
+        RecalculateLocalModelMatrix();
     }
 
-    bool IsHitBoundingBox(float globalx, float globaly) {
-        glm::vec2 local = transformation
-                .TranslateGlobalToLocal(glm::vec2 { globalx, globaly });
-//        std::cout << GetName() << " "
-//                  << local  << " "
-//                  << globalx << " " << globaly
-//                  << std::endl;
-//        bool hit = point_in_bounding_box(shape.GetPoints(), local);
-        BBox bbox = GetBoundingBox();
-        return bbox.Contains(glm::vec2 { globalx, globaly });
-    }
+    void Render(NVGcontext* nvg);
 
-    BBox GetBoundingBox() {
-        Vertices vdata;
-        glm::mat4 local_mat = transformation.GetLocalModelMatrix();
-        for (auto& p : shape.GetPoints()) {
-            auto res = local_mat * glm::vec4(p.xy, 0.0f, 1.0f);
-            vdata.push_back(res.xy);
+    friend std::ostream& operator<<(std::ostream& os, Entity*& e) {
+        os << "{ " << e->GetName()
+           << " ";
+        for (const auto& v : e->data) {
+            os << v << " ";
         }
-
-        box = BBox(vdata);
-
-        for (auto& a : vdata) {
-            std::cout << GetName() << " "
-                      << a
-                      << std::endl;
-        }
-
-        for (auto& child : children) {
-            auto& cbox = child->GetBoundingBox();
-            glm::vec2 min = MapToParent(cbox.GetMin());
-            glm::vec2 max = MapToParent(cbox.GetMax());
-            box.Extend(min);
-            box.Extend(max);
-        }
-
-        return box;
-
-//        box = BBox(shape.GetPoints());
-//        for (auto& c : children) {
-//            auto& cbox = c->GetBoundingBox();
-//            glm::vec2 min = MapToParent(cbox.GetMin());
-//            glm::vec2 max = MapToParent(cbox.GetMax());
-//            box.Extend(min);
-//            box.Extend(max);
-//        }
-//        glm::vec4 min = local_mat * glm::vec4(box.GetMin().xy, 0.0f, 1.0f);
-//        glm::vec4 max = local_mat * glm::vec4(box.GetMax().xy, 0.0f, 1.0f);
-//        auto p1 = glm::vec2(min.xy), p2 = glm::vec2(max.xy);
-//        BBox b(p1, p2);
-//        return b;
-    }
-
-    glm::vec2 MapToParent(glm::vec2& p) {
-        glm::mat4 id(1.0f);
-        if (parent) id = parent->transformation.GetLocalModelMatrix();
-        glm::vec4 mat = id * glm::vec4(p.xy, 0.0f, 1.0f);
-        return mat.xy;
+        os << " }";
+        return os;
     }
 
     std::string& GetName() { return name; }
 
-    std::vector<Entity*>& GetChildren() { return children; }
 
-protected:
-    Entity* parent = nullptr;
-    std::vector<Entity*> children;
-    Transformation transformation;
-    Shape shape;
-    BBox box;
-    std::string name = "";
-    inline static int id = 0;
-
+private:
     void AddChild(Entity* e) {
         e->parent = this;
         children.push_back(e);
     }
-};
 
-/**
- * @brief The GraphicsScene class
- */
-class GraphicsScene : public Entity {
-public:
+    glm::vec3 pos = glm::vec3(0.0f);
+    glm::vec3 eulerRot = glm::vec3(0.0f);
+    glm::vec3 scale = glm::vec3(1.0f);
 
-    Entity* Select(double posx, double posy) {
-        std::queue<Entity*> q;
-        q.push(this);
+    glm::mat4 local_mat = glm::mat4(1.0f);
+    glm::mat4 world_mat = glm::mat4(1.0f);
+    glm::mat4 inv_world_mat = glm::mat4(1.0f);
 
-        selected = nullptr;
+    Entity* parent;
+    std::vector<Entity*> children;
 
-        while (!q.empty()) {
-            Entity* e = q.front();
-            q.pop();
+    std::vector<glm::vec2> data;
 
-//            std::cout << e->GetName()
-//                      << e->GetBoundingBox()
-//                      << e->IsHit(posx, posy)
-//                      << e->IsHitBoundingBox(posx, posy)
-//                      << std::endl;
-
-
-//            if (shape.GetType() != Shape::Null) {
-
-//                BBox b = e->GetBoundingBox();
-
-//                if (e->IsHitBoundingBox(posx, posy)) {
-//                    if (e->IsHit(posx, posy)) {
-//                        selected = e;
-//                    }
-//                }
-//            }
-
-            for (auto& c : e->GetChildren()) {
-                q.push(c);
-            }
-        }
-
-        return selected;
-    }
-private:
-    Entity* selected = nullptr;
-};
-
-
-
-
-
-class InputSystem {
-public:
-    InputSystem(Entity* world_) : world(world_) { }
-
-    void Update();
-
-    void OnMouseDown(double x, double y) { }
-    void OnMouseUp(double x, double y) { }
-    void OnMouseMove(double x, double y) { }
-    void OnKeyDown(int key, int scancode, int action, int mods) { }
-
-private:
-    Entity* world;
-};
-
-
-class RenderSystem {
-public:
-    RenderSystem(GLFWwindow* window_, NVGcontext* nvg_, Entity* world_)
-        : window(window_), nvg(nvg_), world(world_) { }
-    void Render();
-private:
-    GLFWwindow* window;
-    Entity* world;
-    NVGcontext* nvg;
-
-    void RenderEntity(Entity* entity);
+    std::string name;
+    inline static int EntityId = 0;
 };
 
 
@@ -430,188 +211,5 @@ private:
 
 
 
-
-
-
-/**
- * @brief The Component class
- */
-class Component {
-public:
-    virtual ~Component() { }
-    virtual ComponentType GetType() = 0;
-protected:
-};
-
-/**
- * @brief The System class
- */
-class System {
-public:
-    virtual ~System() { }
-
-    virtual void Update(double dt) { }
-};
-
-///**
-// * @brief The Entity class
-// */
-//class Entity {
-//public:
-//    Entity(Entity* parent_) : parent(parent_) { }
-//    BORROW Component* GetComponent(ComponentType type);
-//    bool HasA(ComponentType type);
-//    void Assign(ComponentType type, Component* component);
-
-//    template <typename T>
-//    T* GetComponent(ComponentType type) {
-//        Component* c = GetComponent(type);
-//        return (T*) c;
-//    }
-
-//    Transformation& GetTransformation();
-//protected:
-//    OWNING std::unordered_map<ComponentType, Component*> components;
-//    OWNING std::vector<Entity*> entities;
-//    Transformation transformation;
-//};
-
-//class EntityComponentSystem : public System {
-//public:
-//    EntityComponentSystem() { }
-
-////    BORROW Entity* CreateEntity();
-
-//    BORROW Component* Assign(ComponentType type, Entity* e);
-
-//    BORROW std::vector<Entity*> GetAll();
-//    BORROW std::vector<Entity*> FindHavingAll(std::vector<ComponentType> types);
-//protected:
-//    EntityId GetNextId();
-//private:
-//    static inline int EntityIdGenerator = 0;
-//    OWNING std::unordered_map<EntityId, Entity*> entities;
-
-//    OWNING Component* CreateComponent(ComponentType type);
-//};
-
-///**
-// * color, border, etc..
-// * @brief The RenderComponent class
-// */
-//class RenderComponent : public Component {
-//public:
-//    ComponentType GetType() override { return ComponentType::Render; }
-//    void Select(bool val) { selected = val; }
-//    bool IsSelected() { return selected; }
-//private:
-//    bool selected;
-//};
-
-/////**
-//// * @brief The TransformComponent class
-//// */
-////class TransformComponent : public Component {
-////public:
-////    ComponentType GetType() override { return ComponentType::Transform; }
-
-////    void move(int dx, int dy);
-////    void rotate(float deg);
-
-////    Vector3f GetPos() { return pos; }
-////    Vector3f GetScale() { return scale; }
-
-////    void SetPos(Vector3f pos_) { pos = pos_; }
-////    void SetScale(Vector3f scale_) { scale = scale_; }
-
-////protected:
-////    Vector3f pos;
-////    Vector3f rot;
-////    Vector3f scale;
-////};
-
-///**
-// * @brief The InputComponent class
-// */
-//class InputComponent : public Component {
-//public:
-//    ComponentType GetType() override { return ComponentType::Input; }
-
-//};
-
-///**
-// * @brief The ShapeComponent class
-// */
-//class ShapeComponent : public Component {
-//public:
-//    ComponentType GetType() override { return ComponentType::Shape; }
-//};
-
-///**
-// * @brief The RenderSystem class
-// */
-//class RenderSystem : public System {
-//public:
-//    RenderSystem(GLFWwindow* window, EntityComponentSystem* ecs_, NVGcontext* nvg);
-//    void Update(double dt) override;
-//protected:
-//    BORROW GLFWwindow* window;
-//    BORROW NVGcontext* nvg;
-//    BORROW EntityComponentSystem* ecs;
-//};
-
-///**
-// * @brief The InputSystem class
-// */
-//class InputSystem : public System {
-//public:
-//    InputSystem(EntityComponentSystem* ecs_)
-//        : ecs(ecs_) { }
-
-//    void OnMouseDown(double x, double y) {
-//        mouse_down = true;
-//    }
-//    void OnMouseMove(double x, double y) {
-//        last_mouse_pos = Vector2d { x, y };
-//    }
-//    void OnMouseUp(double x, double y) {
-//        mouse_down = false;
-//    }
-//    void OnKeyDown(int key, int scancode, int action, int mods) {
-
-//    }
-//private:
-//    BORROW EntityComponentSystem* ecs;
-//    bool mouse_down = false;
-//    Vector2d last_mouse_pos;
-//};
-
-///**
-// * @brief The SceneNode class
-// */
-//class SceneNode {
-//public:
-//    SceneNode(Entity* entity_, SceneNode* parent_ = nullptr)
-//        : entity(entity_), parent(parent_) { }
-
-//    void AddChild(SceneNode* child) {
-//        child->parent = this;
-//        children.push_back(child);
-//    }
-
-//protected:
-//    OWNING std::vector<SceneNode*> children;
-//    BORROW SceneNode* parent = nullptr;
-//    BORROW Entity* entity = nullptr;
-//};
-
-///**
-// * @brief The Scene class
-// */
-//class SceneRoot : public SceneNode {
-//public:
-//    SceneRoot(Entity* entity_, SceneNode* parent_ = nullptr)
-//        : SceneNode(entity_, parent_) { }
-//};
 
 #endif // ALPHA2_H
