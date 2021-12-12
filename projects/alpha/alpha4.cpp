@@ -378,7 +378,9 @@ int main(int /* argc */, char ** /* argv */) {
             }
 
 
-
+            static bool mouseMove = false;
+            static glm::vec2 mouseMovePos = { 0, 0 };
+            static glm::vec2 objOffset = { 0, 0 };
 
             ImGui::End();
 
@@ -389,16 +391,39 @@ int main(int /* argc */, char ** /* argv */) {
                 static Entity* selectedEntity = nullptr;
 
                 int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-                if (!ImGui::GetIO().WantCaptureMouse && state == GLFW_PRESS) {
-                    selectedEntity = world->HitTest(p);
+                if (!ImGui::GetIO().WantCaptureMouse) {
+
+                    if (selectedEntity) {
+                        selectedEntity->OnMouseMove(p);
+                    }
+
+                    if (state == GLFW_PRESS) {
+                            selectedEntity = world->HitTest(p);
+                            if (selectedEntity) {
+                                selectedEntity->OnMouseDown(p);
+                            }
+                    }
+                    else if (state == GLFW_RELEASE) {
+                        if (selectedEntity) {
+                            selectedEntity->OnMouseUp(p);
+                        }
+                    }
                 }
 
                 if (selectedEntity) {
                     ImGui::Text("Selected %s", selectedEntity->GetName().c_str());
 
-                    ImGui::Text("Position");
+                    ImGui::Text("Position (global)");
+
+                    glm::vec2 lpos = selectedEntity->GetPos().xy;
+                    glm::vec2 wpos = selectedEntity->ToWorldCoords(lpos);
+                    ImGui::DragFloat2("Global pos:", glm::value_ptr(wpos));
+                    lpos = selectedEntity->ToLocalCoords(wpos);
+                    selectedEntity->SetPos(lpos);
+
+                    ImGui::Text("Position (local)");
                     glm::vec3 pos = selectedEntity->GetPos();
-                    ImGui::DragFloat3("Position:", glm::value_ptr(pos));
+                    ImGui::DragFloat3("Local pos:", glm::value_ptr(pos));
                     selectedEntity->SetPos(pos);
 
                     ImGui::Text("Rotation");

@@ -207,8 +207,8 @@ public:
 
     void SetPos(glm::vec2& v) { SetPos(glm::vec3(v.xy, 0.0f)); }
 
-    void SetRot(float degrees) {
-        eulerRot.z = degrees;
+    void SetRot(float degreesZ) {
+        eulerRot.z = degreesZ;
         RecalculateLocalModelMatrix();
     }
 
@@ -305,6 +305,23 @@ public:
         return nullptr;
     }
 
+    void OnMouseDown(Point& worldp) {
+        mouse_drag = true;
+        mouse_offset = ToLocalCoords(worldp);
+    }
+
+    void OnMouseUp(Point& worldp) {
+        mouse_drag = false;
+    }
+
+    void OnMouseMove(Point& worldp) {
+        if (mouse_drag) {
+            Point p = ToLocalCoords(worldp);
+            Point diff = p - mouse_offset;
+            SetPos(pos + glm::vec3(diff.xy, 0.0f));
+        }
+    }
+
 private:
     void AddChild(Entity* e) {
         e->parent = this;
@@ -338,6 +355,9 @@ private:
     inline static int EntityId = 0;
 
     NVGcolor color = NVGcolor { 0, 0, 255, 255 };
+
+    Point mouse_offset;
+    bool mouse_drag = false;
 };
 
 
