@@ -203,10 +203,30 @@ public:
         RecalculateLocalModelMatrix();
     }
 
-    void SetRotation(glm::vec3& rot) {
-        this->eulerRot = rot;
+    const glm::vec3& GetPos() { return pos; }
+
+    void SetPos(glm::vec2& v) { SetPos(glm::vec3(v.xy, 0.0f)); }
+
+    void SetRot(float degrees) {
+        eulerRot.z = degrees;
         RecalculateLocalModelMatrix();
     }
+
+    void SetRotation(glm::vec3& v) {
+        eulerRot = v;
+        RecalculateLocalModelMatrix();
+    }
+
+    float GetRot() { return eulerRot.z; }
+
+    const glm::vec3& GetScale() { return scale; }
+
+    void SetScale(glm::vec3& v) {
+        scale = v;
+        RecalculateLocalModelMatrix();
+    }
+
+    void SetScale(glm::vec2& v) { SetScale(glm::vec3(v.xy, 1.0f)); }
 
     void Render(NVGcontext* nvg);
 
@@ -235,7 +255,7 @@ public:
         return inv.xy;
     }
 
-    glm::vec2 ToGlobalCoords(glm::vec2& local_pos) {
+    glm::vec2 ToWorldCoords(glm::vec2& local_pos) {
         glm::vec4 pos = world_mat * glm::vec4(local_pos.xy, 0.0f, 1.0f);
         return pos.xy;
     }
@@ -243,6 +263,7 @@ public:
     void SetColor(NVGcolor color) { this->color = color; }
 
     AABB GetAABB() {
+        // TODO: cache
         glm::mat4 mat = world_mat * local_mat;
         AABB aabb;
         for (auto& v : data) {
@@ -259,26 +280,29 @@ public:
         return GetAABB().Contains(p.x, p.y);
     }
 
-    bool HitTest(Point& p) {
-        if (!HitTestAABB(p)) {
-            return false;
+    Entity* HitTest(Point& worldp) {
+        if (!HitTestAABB(worldp)) {
+            return nullptr;
         }
 
         // need to convert to "mesh local" coords
         glm::vec4 local = glm::inverse(world_mat * local_mat)
-                * glm::vec4(p.xy, 0.0f, 1.0f);
+                * glm::vec4(worldp.xy, 0.0f, 1.0f);
 
         Point pt = local.xy;
         bool self = point_in_poly(data, pt);
-        if (self) return true;
+        if (self) {
+            return this;
+        }
         for (auto& child : children) {
-            if (child->HitTestAABB(p)) {
-                if (child->HitTest(p)) {
-                    return true;
+            if (child->HitTestAABB(worldp)) {
+                Entity* found = child->HitTest(worldp);
+                if (found) {
+                    return found;
                 }
             }
         }
-        return false;
+        return nullptr;
     }
 
 private:

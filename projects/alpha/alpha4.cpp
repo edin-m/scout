@@ -31,10 +31,12 @@
 #include <thread>
 #include <chrono>
 
-
 #include "nanovg/nanovg.h"
 
 #include "alpha4/game.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 using namespace nanogui;
 
@@ -91,6 +93,7 @@ int main(int /* argc */, char ** /* argv */) {
     glGetError(); // pull and ignore unhandled errors like GL_INVALID_ENUM
 #endif
 
+    glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 
 
     IMGUI_CHECKVERSION();
@@ -296,6 +299,7 @@ int main(int /* argc */, char ** /* argv */) {
 
 
 
+
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -360,17 +364,56 @@ int main(int /* argc */, char ** /* argv */) {
             {
                 glm::vec2 local = e4->ToLocalCoords(glm::vec2 { xpos, ypos });
                 ImGui::Text("e4 local coords %.2f %.2f", local.x, local.y);
-                glm::vec2 global = e4->ToGlobalCoords(local);
+                glm::vec2 global = e4->ToWorldCoords(local);
                 ImGui::Text("e4 global coords %.2f %.2f; aabb hit:%d %d", global.x, global.y,
                             e4->HitTestAABB(mousep),
                             e4->HitTest(mousep));
+
+
+//                static float vec4a[4] = { 0.10f, 0.20f, 0.30f, 0.44f };
+//                static glm::vec3 v = { 0, 0, 0 };
+//                float* vptr = glm::value_ptr(v);
+//                ImGui::DragFloat4("drag float", vptr, 0.0005f);
+//                ImGui::DragFloat4("input float3", vec4a);
             }
 
 
 
 
-
             ImGui::End();
+
+            {
+                ImGui::Begin("Entity Transformation");
+
+                Point p = { xpos, ypos };
+                static Entity* selectedEntity = nullptr;
+
+                int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+                if (!ImGui::GetIO().WantCaptureMouse && state == GLFW_PRESS) {
+                    selectedEntity = world->HitTest(p);
+                }
+
+                if (selectedEntity) {
+                    ImGui::Text("Selected %s", selectedEntity->GetName().c_str());
+
+                    ImGui::Text("Position");
+                    glm::vec3 pos = selectedEntity->GetPos();
+                    ImGui::DragFloat3("Position:", glm::value_ptr(pos));
+                    selectedEntity->SetPos(pos);
+
+                    ImGui::Text("Rotation");
+                    float rotz = selectedEntity->GetRot();
+                    ImGui::DragFloat("Z rotation", &rotz);
+                    selectedEntity->SetRot(rotz);
+
+                    ImGui::Text("Scale:");
+                    glm::vec3 scale = selectedEntity->GetScale();
+                    ImGui::DragFloat3("Scale", glm::value_ptr(scale), 0.01f);
+                    selectedEntity->SetScale(scale);
+                }
+
+                ImGui::End();
+            }
         }
 
         // 3. Show another simple window.
@@ -382,6 +425,8 @@ int main(int /* argc */, char ** /* argv */) {
                 show_another_window = false;
             ImGui::End();
         }
+
+
 
 
 
@@ -418,6 +463,8 @@ int main(int /* argc */, char ** /* argv */) {
         // Calculate pixel ration for hi-dpi devices.
         pxRatio = (float)fbWidth / (float)winWidth;
         glViewport(0, 0, fbWidth, fbHeight);
+
+        nvgBeginFrame(vg, winWidth, winHeight, pxRatio);
 
         world->Render(vg);
 
