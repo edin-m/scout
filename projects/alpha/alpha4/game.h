@@ -80,8 +80,24 @@ struct AABB {
         return os;
     }
 
+    const glm::vec2& GetMin() { return min; }
+    const glm::vec2& GetMax() { return max; }
     float GetWidth() { return max.x - min.x; }
     float GetHeight() { return max.y - min.y; }
+
+    const glm::vec2 GetTopLeft() {
+        return min.xy;
+    }
+
+    const glm::vec2 GetTopRight() {
+        return glm::vec2(max.x, min.y);
+    }
+
+    const glm::vec2 GetBottomLeft() {
+        return glm::vec2(min.x, max.y);
+    }
+
+    const glm::vec2 GetBottomRight() { return max.xy; }
 
     bool Contains(float x, float y) {
         if (x >= min.x && x <= max.x &&
@@ -207,7 +223,7 @@ public:
 
     void SetPos(glm::vec2& v) { SetPos(glm::vec3(v.xy, 0.0f)); }
 
-    void SetRot(float degreesZ) {
+    void RotateZ(float degreesZ) {
         eulerRot.z = degreesZ;
         RecalculateLocalModelMatrix();
     }
@@ -229,6 +245,8 @@ public:
     void SetScale(glm::vec2& v) { SetScale(glm::vec3(v.xy, 1.0f)); }
 
     void Render(NVGcontext* nvg);
+
+    void RenderModifiers(NVGcontext* nvg);
 
     friend std::ostream& operator<<(std::ostream& os, Entity*& e) {
         os << "{ " << e->GetName()
@@ -272,6 +290,16 @@ public:
         }
         for (auto& c : children) {
             aabb.Expand(c->GetAABB());
+        }
+        return aabb;
+    }
+
+    AABB GetWorldAABBOnlyThis() {
+        // todo refactor
+        AABB aabb;
+        for (auto& v : data) {
+            glm::vec2 local = (local_mat * glm::vec4(v.xy, 0.0f, 1.0f)).xy;
+            aabb.Expand(ToWorldCoords(local));
         }
         return aabb;
     }

@@ -15,7 +15,6 @@ void Entity::Render(NVGcontext* nvg)
     nvgSave(nvg);
 
     if (data.size() > 0) {
-
         nvgFillColor(nvg, color);
         nvgBeginPath(nvg);
 
@@ -52,4 +51,35 @@ void Entity::Render(NVGcontext* nvg)
         e->Render(nvg);
     }
 
+}
+
+void Entity::RenderModifiers(NVGcontext* nvg)
+{
+    nvgSave(nvg);
+
+    AABB aabb = GetAABB();
+
+    nvgReset(nvg);
+
+    NVGcolor c = nvgRGBA(255, 0, 0, 155);
+    nvgStrokeColor(nvg, c);
+    nvgFillColor(nvg, c);
+
+    nvgBeginPath(nvg);
+
+    auto& tl = aabb.GetTopLeft();
+    nvgCircle(nvg, tl.x, tl.y, 5.0f);
+
+    auto& tr = aabb.GetTopRight();
+    nvgCircle(nvg, tr.x, tr.y, 5.0f);
+
+    auto& bl = aabb.GetBottomLeft();
+    nvgCircle(nvg, bl.x, bl.y, 5.0f);
+
+    auto& br = aabb.GetBottomRight();
+    nvgCircle(nvg, br.x, br.y, 5.0f);
+
+    nvgFill(nvg);
+
+    nvgRestore(nvg);
 }

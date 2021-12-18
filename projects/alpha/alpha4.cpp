@@ -249,10 +249,10 @@ int main(int /* argc */, char ** /* argv */) {
 
 
     Vertices data = {
-        { 0, 0 },
-        { 0, 100 },
-        { 100, 100 },
-        { 100, 0 },
+        { -70, -40 },
+        { -70, 40 },
+        { 70, 40 },
+        { 70, -40 },
     };
 
 
@@ -304,6 +304,12 @@ int main(int /* argc */, char ** /* argv */) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+
+        static Entity* selectedEntity = nullptr;
+
+
+
 
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
@@ -388,7 +394,6 @@ int main(int /* argc */, char ** /* argv */) {
                 ImGui::Begin("Entity Transformation");
 
                 Point p = { xpos, ypos };
-                static Entity* selectedEntity = nullptr;
 
                 int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
                 if (!ImGui::GetIO().WantCaptureMouse) {
@@ -429,7 +434,7 @@ int main(int /* argc */, char ** /* argv */) {
                     ImGui::Text("Rotation");
                     float rotz = selectedEntity->GetRot();
                     ImGui::DragFloat("Z rotation", &rotz);
-                    selectedEntity->SetRot(rotz);
+                    selectedEntity->RotateZ(rotz);
 
                     ImGui::Text("Scale:");
                     glm::vec3 scale = selectedEntity->GetScale();
@@ -491,7 +496,31 @@ int main(int /* argc */, char ** /* argv */) {
 
         nvgBeginFrame(vg, winWidth, winHeight, pxRatio);
 
+
+//        nvgStrokeColor(vg, nvgRGBA(155, 0, 0, 255));
+//        nvgRect(vg, 0, 0, 100, 100);
+//        nvgStroke(vg);
+
+//        nvgStrokeColor(vg, nvgRGBA(255, 0, 0, 255));
+
+////        nvgBeginPath(vg);
+////        nvgMoveTo(vg, 0, 0);
+////        nvgLineTo(vg, 100, 100);
+////        nvgStroke(vg);
+
+//        nvgBeginPath(vg);
+//        nvgMoveTo(vg, 0, 0);
+//        nvgLineTo(vg, 100, 100);
+//        nvgLineTo(vg, 200, 100);
+//        nvgLineTo(vg, 200, 200);
+////        nvgClosePath(vg);
+//        nvgStroke(vg);
+
         world->Render(vg);
+
+        if (selectedEntity) {
+            selectedEntity->RenderModifiers(vg);
+        }
 
         nvgEndFrame(vg);
 
