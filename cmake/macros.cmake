@@ -124,6 +124,21 @@ macro(link_cute TARGET_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/cute-build/include)
 endmacro()
 
+macro(link_protobuf TARGET_NAME)
+    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/protobuf-3.19.1-build/include)
+    target_link_libraries(${TARGET_NAME} PUBLIC
+        debug ${EXT_LIB_ROOT}/protobuf-3.19.1-build/${ARCH}-Debug-static/lib/libprotobufd.lib
+        optimized ${EXT_LIB_ROOT}/protobuf-3.19.1-build/${ARCH}-Release-static/lib/libprotobuf.lib)
+endmacro()
+
+macro(link_libuv TARGET_NAME)
+    target_link_libraries(${TARGET_NAME} PUBLIC
+        debug ${EXT_LIB_ROOT}/libuv-build/${ARCH}-Debug/uv_a.lib
+        optimized ${EXT_LIB_ROOT}/libuv-build/${ARCH}-Release/uv_a.lib)
+    target_link_libraries(${TARGET_NAME} PUBLIC Ws2_32.lib IPHLPAPI.lib Userenv.lib)
+    target_include_directories(${TARGET_NAME} PRIVATE ${EXT_LIB_ROOT}/libuv-build/include)
+endmacro()
+
 # setup output directory location based on the project name for a target
 # usage:
 #list(APPEND TARGETS nanogui_example glad_example nanovg_example imgui_example)

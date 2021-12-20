@@ -51,5 +51,13 @@ macro(link_dependencies TARGET_NAME)
         if(${lib} STREQUAL cute)
             link_cute(${TARGET_NAME})
         endif()
+
+        if(${lib} STREQUAL libuv)
+            link_libuv(${TARGET_NAME})
+        endif()
+
+        if (${lib} STREQUAL protobuf)
+            link_protobuf(${TARGET_NAME})
+        endif()
     endforeach()
 endmacro()
