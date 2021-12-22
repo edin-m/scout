@@ -3,6 +3,7 @@
 // If you are new to Dear ImGui, read documentation from the docs/ folder + read the top of imgui.cpp.
 // Read online: https://github.com/ocornut/imgui/tree/master/docs
 
+#include <cstdlib>
 #include <sstream>
 #include <iostream>
 #include <functional>
@@ -11,6 +12,9 @@
 #include <deque>
 #include <algorithm>
 #include <set>
+#include <memory>
+#include <string>
+#include <stdexcept>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -31,6 +35,15 @@
 
 #include "uv.h"
 
+#include <google/protobuf/message.h>
+#include <google/protobuf/message_lite.h>
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+
+#include "person/person.pb.h"
+
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -43,7 +56,16 @@ typedef int TcpConnectionId;
 
 
 
-
+template<typename ... Args>
+std::string string_format( const std::string& format, Args ... args )
+{
+    int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
+    auto size = static_cast<size_t>( size_s );
+    auto buf = std::make_unique<char[]>( size );
+    std::snprintf( buf.get(), size, format.c_str(), args ... );
+    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}
 
 
 template <class T>
@@ -80,6 +102,48 @@ using IntIdPool = IdPool<int>;
 
 
 
+class Timer {
+public:
+    using TimeoutCb = std::function<void()>;
+
+    Timer(uv_loop_t* loop_, long milis_, bool is_repeated_ = false)
+        : loop(loop_), milis(milis_), is_repeated(is_repeated_)
+    {
+        timer.data = this;
+        uv_timer_init(loop, &timer);
+    }
+
+    ~Timer() {
+        Stop();
+    }
+
+    void OnTimeout(TimeoutCb f) { on_timeout = f; }
+
+    void Start() {
+        uint64_t repeat = is_repeated ? milis : 0;
+        uv_timer_start(&timer, &Timer::OnTimerCb, milis, repeat);
+    }
+
+    void Stop() {
+        uv_timer_stop(&timer);
+    }
+
+private:
+    uv_loop_t* loop;
+    uv_timer_t timer;
+    long milis;
+    bool is_repeated = false;
+
+    TimeoutCb on_timeout;
+
+    static void OnTimerCb(uv_timer_t* timer) {
+        Timer* self = (Timer*) timer->data;
+        self->on_timeout();
+    }
+};
+
+
+
 
 
 
@@ -97,6 +161,7 @@ public:
     TcpSocket2(uv_loop_t* loop_)
         : loop(loop_)
     {
+        id = rand();
         on_connect = []() {};
         on_data = [](std::string) {};
         on_close_last = []() {};
@@ -111,7 +176,7 @@ public:
 
     void Write(std::string message) {
         std::cout << __FUNCTION__ << "|"
-                  << name << "|"
+                  << name << "|" << id << " "
                   << message << std::endl;
         uv_write_t* write;
         write = (uv_write_t*) malloc(sizeof *write);
@@ -135,6 +200,7 @@ public:
 
     void Connect(std::string ipv4, int port) {
         std::cout << __FUNCTION__ << std::endl;
+        closed = false;
         int res;
         struct sockaddr_in addr;
         uv_connect_t* req;
@@ -179,6 +245,7 @@ private:
     uv_loop_t* loop;
     uv_stream_t* stream = nullptr;
     std::string name;
+    bool closed = false;
 
     OnConnectCb on_connect;
     OnDataCb on_data;
@@ -212,6 +279,7 @@ private:
         int res;
 
         if (nread < 0) {
+            std::cout << __FUNCTION__ << nread << std::endl;
             if (nread == UV_EOF) {
                 free(buf->base);
                 uv_close((uv_handle_t*) stream, AfterCloseCb);
@@ -219,6 +287,7 @@ private:
             }
 
             // todo: error handle
+            std::cout << "error readcb: " << uv_err_name(nread) << std::endl;
 
             if (uv_is_writable(stream)) {
                 sreq = (uv_shutdown_t*) malloc(sizeof *sreq);
@@ -266,13 +335,13 @@ private:
 
 
 
-
 class TcpServer2 {
     using OnConnectionCb = std::function<void(TcpSocket2*)>;
     using OnListeningCb = std::function<void()>;
     using OnErrorCb = std::function<void()>;
     using OnCloseCb = std::function<void()>;
     using SocketId = TcpSocket2::SocketId;
+    using SocketIdPool = IdPool<SocketId>;
 public:
     TcpServer2(uv_loop_t* loop_)
         : loop(loop_)
@@ -306,7 +375,7 @@ private:
 
     std::map<SocketId, TcpSocket2*> clients;
 
-    IdPool<SocketId> id_pool;
+    SocketIdPool id_pool;
 
     // listeners
     OnConnectionCb on_connection;
@@ -334,6 +403,7 @@ private:
             self->id_pool.Free(socket->GetSocketId());
         });
         socket->OnCloseLast([socket]() {
+            // or schedule delete on lib uv's next iter
             delete socket;
         });
 
@@ -361,88 +431,6 @@ private:
 
 
 
-uv_loop_t* uvloop;
-
-
-static void echo_alloc(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-    buf->base = (char*) malloc(suggested_size);
-    buf->len = suggested_size;
-}
-
-static void echo_write(uv_write_t *req, int status) {
-  if (status == -1) {
-    fprintf(stderr, "Write error!\n");
-  }
-  char *base = (char*) req->data;
-  free(base);
-  free(req);
-}
-
-static void close_client_cb(uv_handle_t* handle) {
-    std::cout << __FUNCTION__ << std::endl;
-    free(handle);
-}
-
-static void after_shutdown(uv_shutdown_t* req, int status) {
-    std::cout << __FUNCTION__ << std::endl;
-    uv_close((uv_handle_t*) req->handle, close_client_cb);
-    free(req);
-}
-
-static void after_read(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
-    uv_shutdown_t* sreq;
-
-    if (nread == 0) {
-        free(buf->base);
-        return;
-    }
-
-    if (nread < 0) {
-        if (nread == UV_EOF) {
-            free(buf->base);
-            uv_close((uv_handle_t*) stream, close_client_cb);
-            return;
-        }
-
-        // error handle
-
-        if (uv_is_writable(stream)) {
-            sreq = (uv_shutdown_t*) malloc(sizeof* sreq);
-            uv_shutdown(sreq, stream, after_shutdown);
-        }
-
-        std::cout << "Error:" << nread << " " << EAGAIN << " " << UV_EOF << " " << EWOULDBLOCK << std::endl;
-        return;
-    }
-
-    std::stringstream ss;
-    for (int i = 0; i < nread; i++) {
-        char c = buf->base[i];
-        ss << c;
-    }
-
-    if (nread != 0) {
-        std::cout << "RECV:" << nread << uv_is_writable(stream) << " " << ss.str() << std::endl;
-    }
-}
-
-
-static void connection_cb(uv_stream_t * server, int status) {
-    uv_stream_t* stream;
-
-    // tcp
-    stream = (uv_stream_t*) malloc(sizeof(uv_tcp_t));
-    uv_tcp_init(uvloop, (uv_tcp_t*)stream);
-    stream->data = server;
-
-    uv_accept(server, stream);
-
-    uv_read_start(stream, echo_alloc, after_read);
-}
-
-
-
-
 
 
 
@@ -455,6 +443,22 @@ void f(int a, int b, int c) {
 
 int main(int, char**)
 {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+    using namespace google::protobuf;
+    using namespace google::protobuf::io;
+
+    Foo foo;
+    foo.set_text("wicked sick");
+    std::string data;
+    foo.SerializeToString(&data);
+
+    Foo foo2;
+    foo2.ParseFromString(data);
+
+    std::cout << "output" << data << data.size() << std::endl;
+    std::cout << "parsed" << foo2.text() << std::endl;
+
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
@@ -526,27 +530,62 @@ int main(int, char**)
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 
+    uv_loop_t* uvloop = uv_default_loop();
 
-    uvloop = uv_default_loop();
 
-    std::set<TcpSocket2::SocketId> server_clients;
+
+
+
+//    Timer* t = new Timer(uvloop, 1000, false);
+//    t->OnTimeout([t]() {
+//        std::cout << "timer" << std::endl;
+//    });
+//    t->Start();
+
+
+
+    struct ChatClient {
+        TcpSocket2::SocketId id;
+        std::string name;
+        TcpSocket2* socket;
+        bool show = true;
+        std::string tmp_msg;
+
+        struct Message {
+            std::string text;
+            bool received = false;
+        };
+
+        std::vector<Message> messages;
+    };
+
+    std::map<TcpSocket2::SocketId, ChatClient> client_chat_map;
+    std::map<TcpSocket2::SocketId, ChatClient> server_chat_map;
 
     TcpServer2* server = new TcpServer2(uvloop);
     server->OnConnection([&](TcpSocket2* conn) {
         conn->SetName("server side");
 
-        server_clients.insert(conn->GetSocketId());
+        ChatClient cc;
+        cc.socket = conn;
+        cc.name = conn->GetName();
+        cc.id = conn->GetSocketId();
+        server_chat_map[cc.id] = cc;
 
-        conn->OnData([](std::string str) {
+        conn->OnData([conn, &server_chat_map](std::string str) {
             std::cout << "SRV: ondata:" << str << std::endl;
+            ChatClient& cc2 = server_chat_map[conn->GetSocketId()];
+            cc2.messages.push_back(ChatClient::Message { str });
         });
 
-        conn->OnClose([=, &server_clients]() {
-            std::cout << "SRV: OnClose:" << conn->GetSocketId() << std::endl;
-            server_clients.erase(conn->GetSocketId());
+        conn->OnClose([conn, &server_chat_map]() {
+            int id = conn->GetSocketId();
+            std::cout << "SRV: OnClose:" << id << std::endl;
+
+            ChatClient& cc = server_chat_map[id];
+            server_chat_map.erase(id);
         });
 
-//        conn->Write("Hello, welcome to the server!");
     });
     server->Listen("0.0.0.0", 3001);
 
@@ -628,9 +667,35 @@ int main(int, char**)
                 }
             }
 
-            for (auto& v : server_clients) {
-                ImGui::LabelText("client", "socket:%d", v);
+
+
+
+            ImGui::LabelText("", "Message");
+            static std::string msg;
+            ImGui::InputText("server msg", &msg);
+
+
+            for (auto& [key, val] : server_chat_map) {
+                TcpSocket2::SocketId id = key;
+                ChatClient& cc = val;
+                ImGui::PushID(cc.id);
+                ImGui::LabelText("client", "socket:%d", cc.id); ImGui::SameLine();
+                if (ImGui::Button("Send")) {
+                    std::cout << "server sending to" << cc.socket->GetName() << std::endl;
+                    cc.socket->Write(msg);
+                    msg = "";
+                }
+                ImGui::PopID();
             }
+
+
+//            for (auto& v : server_clients) {
+//                ImGui::LabelText("client", "socket:%d", v); ImGui::SameLine();
+//                if (ImGui::Button("Send")) {
+//                    TcpSocket2* conn = server_clients_map[v];
+//                    conn->Write(msg);
+//                }
+//            }
 
             ImGui::End();
         }
@@ -639,25 +704,158 @@ int main(int, char**)
             ImGui::Begin("Open Connection");
 
             if (ImGui::Button("Open connection")) {
+                ChatClient client;
                 TcpSocket2* socket = new TcpSocket2(uvloop);
+
+                socket->OnConnect([]() {
+                    std::cout << "client onconnect" << std::endl;
+                });
+
                 socket->Connect("0.0.0.0", 3001);
-                sockets.insert(socket);
+
+                client.id = socket->GetSocketId();
+                client.socket = socket;
+                client.name = string_format("name %d", socket->GetSocketId());
+
+                client_chat_map[client.id] = client;
+
+                socket->OnClose([socket, &client_chat_map]() {
+                    client_chat_map.erase(socket->GetSocketId());
+                });
+
+                socket->OnData([socket, &client_chat_map](std::string data) {
+                    std::cout << "client on data" << std::endl;
+                    ChatClient& cc = client_chat_map[socket->GetSocketId()];
+                    cc.messages.push_back(ChatClient::Message { data });
+                });
             }
 
             ImGui::End();
         }
 
+
+
+
         {
 
-            {
-                ImGui::Begin("Client");
 
-                for (auto it = sockets.begin(); it != sockets.end(); ++it) {
-                    TcpSocket2* socket = *it;
-                    ImGui::LabelText("socket", "socket:%d", socket->GetSocketId());
+            std::vector<TcpSocket2::SocketId> remove;
+            for (auto& [key, val] : client_chat_map) {
+                TcpSocket2::SocketId id = key;
+                ChatClient& cc = val;
+                cc.socket->Read();
+
+                bool exshow = cc.show;
+                if (cc.show) {
+                    if (!ImGui::Begin(cc.name.c_str(), &cc.show)) {
+                        ImGui::End();
+                    }
+                    else {
+                        ImGui::LabelText("msgs", "num of msgs %d", cc.messages.size());
+
+                        for (auto& msg : cc.messages) {
+                            ImGui::TextWrapped("%s", msg.text.c_str());
+                            ImGui::SetScrollY(ImGui::GetScrollMaxY());
+                        }
+
+                        ImGui::InputText("", &cc.tmp_msg); ImGui::SameLine();
+                        if (ImGui::Button("Send")) {
+                            cc.socket->Write(cc.tmp_msg);
+                            cc.tmp_msg = "";
+                        }
+
+                        ImGui::End();
+                    }
+
+                    if (exshow && !cc.show) {
+                        remove.push_back(id);
+                        cc.socket->Close();
+                    }
                 }
+            }
 
-                ImGui::End();
+            for (TcpSocket2::SocketId id : remove) {
+                client_chat_map.erase(id);
+            }
+
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        {
+
+
+//            std::vector<TcpSocket2::SocketId> remove;
+//            std::cout << "chats " << chat_clients.size() << std::endl;
+//            for (ChatClient& cc : chat_clients) {
+//                bool exshow = cc.show;
+//                if (cc.show) {
+//                    if (!ImGui::Begin(cc.name.c_str(), &cc.show)) {
+//                        ImGui::End();
+//                    }
+//                    else {
+
+
+////                    std::string text = string_format("client:%d", cc.socket->GetSocketId());
+////                    ImGui::LabelText("", text.c_str());
+
+//                        ImGui::End();
+//                    }
+
+//                    if (exshow && !cc.show) {
+//                        remove.push_back(cc.socket->GetSocketId());
+//                        cc.socket->Close();
+//                    }
+//                }
+//            }
+
+//            // remove closed connections
+//            for (auto id : remove) {
+//                chat_clients.erase(
+//                            std::remove_if(chat_clients.begin(),
+//                                           chat_clients.end(),
+//                                           [id](ChatClient& cc) { return cc.id == id; }),
+//                        chat_clients.end());
+//                server_clients.erase(id);
+//            }
+
+
+
+
+
+
+
+
+
+            {
+//                ImGui::Begin("Client");
+
+//                for (auto it = sockets.begin(); it != sockets.end(); ++it) {
+//                    TcpSocket2* socket = *it;
+//                    ImGui::LabelText("socket", "socket:%d", socket->GetSocketId());
+//                    ImGui::Button("Open window");
+//                }
+
+//                ImGui::End();
             }
         }
 

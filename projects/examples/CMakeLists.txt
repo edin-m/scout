@@ -18,7 +18,7 @@ target_compile_definitions(nanogui_example PUBLIC NANOGUI_GLAD)
 add_executable(libuv_example libuv_example.cpp)
 link_dependencies(libuv_example LIBS opengl glad glfw imgui libuv)
 
-add_executable(libuv_example2 libuv_example2.cpp person/person.pb.h person/person.pb.cc)
+add_executable(libuv_example2 libuv_example2.cpp person/person.pb.h person/person.pb.cc person.proto)
 link_dependencies(libuv_example2 LIBS opengl glad glfw imgui libuv protobuf)
 
 # setup output dir for all exampels
