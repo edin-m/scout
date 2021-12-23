@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <type_traits>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -153,6 +154,7 @@ private:
 
 class TcpSocket2 {
     using OnConnectCb = std::function<void()>;
+    using OnConnectErrorCb = std::function<void()>;
     using OnCloseCb = std::function<void()>;
     using OnDataCb = std::function<void(std::string)>;
 public:
@@ -172,6 +174,11 @@ public:
     {
         id = id_;
         stream = stream_;
+    }
+
+    ~TcpSocket2() {
+        // free stream
+        std::cout << __FUNCTION__ << std::endl;
     }
 
     void Write(std::string message) {
@@ -221,6 +228,7 @@ public:
 
     void Close() {
         if (stream != nullptr) {
+
             uv_close((uv_handle_t*) stream, AfterCloseCb);
         }
     }
@@ -230,6 +238,8 @@ public:
     const std::string& GetName() const { return name; }
 
     void OnConnect(OnConnectCb f) { on_connect = f; }
+
+    void OnConnectError(OnConnectErrorCb f) { on_connect_error = f; }
 
     void OnData(OnDataCb f) { on_data = f; }
 
@@ -248,6 +258,7 @@ private:
     bool closed = false;
 
     OnConnectCb on_connect;
+    OnConnectCb on_connect_error;
     OnDataCb on_data;
     std::vector<OnCloseCb> on_close;
     OnCloseCb on_close_last;
@@ -258,7 +269,14 @@ private:
 
         free(req);
 
-        socket->on_connect();
+        std::cout << __FUNCTION__ << status << std::endl;
+        if (status == 0) {
+            socket->on_connect();
+        }
+        else {
+            std::cout << "Connection error" << std::endl;
+            socket->on_connect_error();
+        }
     }
 
     static void WriteCb(uv_write_t* req, int status) {
@@ -279,7 +297,6 @@ private:
         int res;
 
         if (nread < 0) {
-            std::cout << __FUNCTION__ << nread << std::endl;
             if (nread == UV_EOF) {
                 free(buf->base);
                 uv_close((uv_handle_t*) stream, AfterCloseCb);
@@ -325,6 +342,7 @@ private:
                   << self->GetName() << " "
                   << self->on_close.size() << std::endl;
         free(handle);
+        self->stream = nullptr;
 
         for (int i = 0; i < self->on_close.size(); i++) {
             self->on_close[i]();
@@ -550,6 +568,7 @@ int main(int, char**)
         TcpSocket2* socket;
         bool show = true;
         std::string tmp_msg;
+        std::string error;
 
         struct Message {
             std::string text;
@@ -564,7 +583,7 @@ int main(int, char**)
 
     TcpServer2* server = new TcpServer2(uvloop);
     server->OnConnection([&](TcpSocket2* conn) {
-        conn->SetName("server side");
+        conn->SetName(string_format("on server (%d)", conn->GetSocketId()));
 
         ChatClient cc;
         cc.socket = conn;
@@ -575,7 +594,7 @@ int main(int, char**)
         conn->OnData([conn, &server_chat_map](std::string str) {
             std::cout << "SRV: ondata:" << str << std::endl;
             ChatClient& cc2 = server_chat_map[conn->GetSocketId()];
-            cc2.messages.push_back(ChatClient::Message { str });
+            cc2.messages.push_back(ChatClient::Message { str, true });
         });
 
         conn->OnClose([conn, &server_chat_map]() {
@@ -587,7 +606,7 @@ int main(int, char**)
         });
 
     });
-    server->Listen("0.0.0.0", 3001);
+//    server->Listen("0.0.0.0", 3001);
 
     std::set<TcpSocket2*> sockets;
 
@@ -660,8 +679,14 @@ int main(int, char**)
 
             if (server->IsListening()) {
                 ImGui::LabelText("", "server is listening");
+                ImGui::SameLine();
+                if (ImGui::Button("Stop")) {
+                    // todo stop server
+                }
             }
             else {
+                static std::string ipaddr = "0.0.0.0";
+                ImGui::InputText("Ip Addr", &ipaddr);
                 if (ImGui::Button("Start server")) {
                     server->Listen("0.0.0.0", 3001);
                 }
@@ -703,41 +728,124 @@ int main(int, char**)
         {
             ImGui::Begin("Open Connection");
 
+            static std::string connect_to_ipaddr = "0.0.0.0";
+            static int connect_to_port = 3001;
+
+            ImGui::InputText("remote ip", &connect_to_ipaddr);
+            ImGui::InputInt("port", &connect_to_port);
+
             if (ImGui::Button("Open connection")) {
                 ChatClient client;
                 TcpSocket2* socket = new TcpSocket2(uvloop);
 
-                socket->OnConnect([]() {
+                socket->OnConnect([&client, socket, &client_chat_map]() {
+                    client.error = "";
                     std::cout << "client onconnect" << std::endl;
+
+                    client.id = socket->GetSocketId();
+                    client.socket = socket;
+                    client.name = string_format("name %d", socket->GetSocketId());
+
+                    client_chat_map[client.id] = client;
+
+                    socket->OnClose([socket, &client_chat_map]() {
+                        client_chat_map.erase(socket->GetSocketId());
+                    });
+
+                    socket->OnCloseLast([socket]() {
+                        delete socket;
+                    });
+
+                    socket->OnData([socket, &client_chat_map](std::string data) {
+                        std::cout << "client on data" << std::endl;
+                        ChatClient& cc = client_chat_map[socket->GetSocketId()];
+                        cc.messages.push_back(ChatClient::Message { data, true });
+                    });
                 });
 
-                socket->Connect("0.0.0.0", 3001);
-
-                client.id = socket->GetSocketId();
-                client.socket = socket;
-                client.name = string_format("name %d", socket->GetSocketId());
-
-                client_chat_map[client.id] = client;
-
-                socket->OnClose([socket, &client_chat_map]() {
-                    client_chat_map.erase(socket->GetSocketId());
+                socket->OnConnectError([&client]() {
+                    client.error = "Could not connect";
                 });
 
-                socket->OnData([socket, &client_chat_map](std::string data) {
-                    std::cout << "client on data" << std::endl;
-                    ChatClient& cc = client_chat_map[socket->GetSocketId()];
-                    cc.messages.push_back(ChatClient::Message { data });
-                });
+                socket->Connect(connect_to_ipaddr, connect_to_port);
             }
+
+//            if (client.error.length() > 0) {
+//                ImGui::LabelText(client.error.c_str(), "");
+//            }
+
 
             ImGui::End();
         }
 
 
 
-
+        // server chat map
         {
 
+            std::vector<TcpSocket2::SocketId> remove;
+            for (auto& [key, val] : server_chat_map) {
+                TcpSocket2::SocketId id = key;
+                ChatClient& cc = val;
+                cc.socket->Read();
+
+                ImGui::PushID(cc.socket->GetSocketId());
+
+                bool exshow = cc.show;
+                if (cc.show) {
+                    if (!ImGui::Begin(cc.name.c_str(), &cc.show)) {
+                        ImGui::End();
+                    }
+                    else {
+                        ImGui::LabelText("msgs", "num of msgs %d", cc.messages.size());
+
+                        for (auto& msg : cc.messages) {
+                            ImVec4 redish = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+                            ImVec4 greenish = ImVec4(0.4f, 1.0f, 0.4f, 1.0f);
+                            ImVec4 color = msg.received ? redish : greenish;
+                            ImGui::PushStyleColor(ImGuiCol_Text, color);
+
+                            ImGui::TextWrapped("%s", msg.text.c_str());
+                            ImGui::SetScrollY(ImGui::GetScrollMaxY());
+
+                            ImGui::PopStyleColor();
+                        }
+
+                        ImGui::InputText("", &cc.tmp_msg); ImGui::SameLine();
+                        if (ImGui::Button("Send")) {
+                            cc.messages.push_back(ChatClient::Message { cc.tmp_msg, false });
+                            cc.socket->Write(cc.tmp_msg);
+                            cc.tmp_msg = "";
+                        }
+
+                        ImGui::End();
+                    }
+
+                    if (exshow && !cc.show) {
+                        remove.push_back(id);
+                    }
+                }
+
+                ImGui::PopID();
+            }
+
+            for (TcpSocket2::SocketId id : remove) {
+                ChatClient& cc = server_chat_map[id];
+                TcpSocket2* sock = cc.socket;
+                sock->Close();
+                server_chat_map.erase(id);
+            }
+
+        }
+
+
+
+
+
+
+
+        // client chat map
+        {
 
             std::vector<TcpSocket2::SocketId> remove;
             for (auto& [key, val] : client_chat_map) {
@@ -754,12 +862,20 @@ int main(int, char**)
                         ImGui::LabelText("msgs", "num of msgs %d", cc.messages.size());
 
                         for (auto& msg : cc.messages) {
+                            ImVec4 redish = ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+                            ImVec4 greenish = ImVec4(0.4f, 1.0f, 0.4f, 1.0f);
+                            ImVec4 color = msg.received ? redish : greenish;
+                            ImGui::PushStyleColor(ImGuiCol_Text, color);
+
                             ImGui::TextWrapped("%s", msg.text.c_str());
+                            ImGui::PopStyleColor();
+
                             ImGui::SetScrollY(ImGui::GetScrollMaxY());
                         }
 
                         ImGui::InputText("", &cc.tmp_msg); ImGui::SameLine();
                         if (ImGui::Button("Send")) {
+                            cc.messages.push_back(ChatClient::Message { cc.tmp_msg, false });
                             cc.socket->Write(cc.tmp_msg);
                             cc.tmp_msg = "";
                         }
@@ -769,12 +885,13 @@ int main(int, char**)
 
                     if (exshow && !cc.show) {
                         remove.push_back(id);
-                        cc.socket->Close();
                     }
                 }
             }
 
             for (TcpSocket2::SocketId id : remove) {
+                ChatClient& cc = client_chat_map[id];
+                cc.socket->Close();
                 client_chat_map.erase(id);
             }
 
