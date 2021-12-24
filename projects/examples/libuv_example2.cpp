@@ -228,8 +228,7 @@ public:
 
     void Close() {
         if (stream != nullptr) {
-
-            uv_close((uv_handle_t*) stream, AfterCloseCb);
+            uv_close((uv_handle_t*) stream, &TcpSocket2::AfterCloseCb);
         }
     }
 
@@ -258,7 +257,7 @@ private:
     bool closed = false;
 
     OnConnectCb on_connect;
-    OnConnectCb on_connect_error;
+    OnConnectErrorCb on_connect_error;
     OnDataCb on_data;
     std::vector<OnCloseCb> on_close;
     OnCloseCb on_close_last;
