@@ -22,6 +22,11 @@ macro(link_dependencies TARGET_NAME)
             link_glad(${TARGET_NAME})
         endif()
 
+        # src
+        if (${lib} STREQUAL src)
+            link_src(${TARGET_NAME})
+        endif()
+
         # nanovg
         if(${lib} STREQUAL nanovg)
             link_nanovg(${TARGET_NAME})
@@ -30,6 +35,11 @@ macro(link_dependencies TARGET_NAME)
         # imgui
         if(${lib} STREQUAL imgui)
             link_imgui(${TARGET_NAME})
+        endif()
+
+        # imgui2
+        if(${lib} STREQUAL imgui2)
+            link_imgui2(${TARGET_NAME})
         endif()
 
         # eigen
@@ -52,10 +62,12 @@ macro(link_dependencies TARGET_NAME)
             link_cute(${TARGET_NAME})
         endif()
 
+        # uv
         if(${lib} STREQUAL libuv)
             link_libuv(${TARGET_NAME})
         endif()
 
+        # protobuf
         if (${lib} STREQUAL protobuf)
             link_protobuf(${TARGET_NAME})
         endif()

@@ -111,9 +111,23 @@ macro(link_imgui TARGET_NAME)
         "${IMGUI_HOME}/backends/imgui_impl_opengl3.cpp" )
 endmacro()
 
+macro(link_imgui2 TARGET_NAME)
+    set(IMGUI_HOME ${GIT_ROOT}/external/lib_bin/imgui)
+    target_include_directories(${TARGET_NAME}
+        PRIVATE ${IMGUI_HOME} ${IMGUI_HOME}/backends ${IMGUI_HOME}/misc/cpp)
+    file(GLOB IMGUI_CPP "${IMGUI_HOME}/imgui*.cpp")
+    list(APPEND IMGUI_CPP "${IMGUI_HOME}/backends/imgui_impl_glfw.cpp"
+        "${IMGUI_HOME}/misc/cpp/imgui_stdlib.cpp"
+        "${IMGUI_HOME}/backends/imgui_impl_opengl3.cpp")
+    target_include_directories(imgui
+        PRIVATE ${IMGUI_HOME} ${IMGUI_HOME}/backends ${IMGUI_HOME}/misc/cpp)
+    target_link_libraries(${TARGET_NAME} PUBLIC imgui)
+endmacro()
+
 macro(link_src TARGET_NAME)
     target_include_directories(${TARGET_NAME} PRIVATE ${GIT_ROOT}/src)
-    target_sources(${TARGET_NAME} PRIVATE ${SRC_SOURCES})
+#    target_sources(${TARGET_NAME} PRIVATE ${SRC_SOURCES})
+    target_link_libraries(${TARGET_NAME} PUBLIC libsrc)
 endmacro()
 
 macro(link_glm TARGET_NAME)
